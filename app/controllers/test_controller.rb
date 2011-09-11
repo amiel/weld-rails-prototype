@@ -1,9 +1,8 @@
 module Weld
   class Loader
-    attr_reader :cxt, :modules
 
-    def initialize
-      @cxt = V8::Context.new
+    def initialize c
+      @cxt = c
       @path = [Rails.root.join('js')]
       # @path << @path.first.join('lib')
       @modules = {}
@@ -47,43 +46,50 @@ end
 
 class TestController < ApplicationController
   def index
-    @loader = Weld::Loader.new
+    c = V8::Context.new
+    @loader = Weld::Loader.new c
     domcore = @loader.require('domcore')
     weld = @loader.require('weld')
-    n = ""
 
 
-    c = @loader.cxt
     c['core'] = domcore['core']
     c['weld'] = weld['weld']
+    c['location'] = { href: request.url }
+    c['htmls'] = '<div id="foobar"><ol><li class="fish">HAHAHA</li></ol><div></div></div>'
 
-    c['htmls'] = <<-HTML
-      <div id="foobar">
-        <ol>
-          <li class="fish">
-            HAHAHA
-          </li>
-        </ol>
-      </div>
-    HTML
 
+# {url: location.url, documentRoot: '/'}
     c.eval <<-JS
       // Stolen from SproutCoreNative
       // (https://github.com/jfahrenkrug/SproutCoreNative/blob/master/SproutCoreNative/SCUIViewController.m)
-      this.prototype = core; window = this; window.document = new core.Document(); location = {href: 'http://localhost'}; window.document.prototype = core; window.addEventListener = (new core.Node()).addEventListener; window.navigator = {userAgent: 'Webkit'}; console = {log: function() { gah(); }};
+      this.prototype = core; window = this; window.document = new core.Document(); window.document.prototype = core; window.location = location; window.addEventListener = (new core.Node()).addEventListener; window.navigator = {userAgent: 'Webkit'}; console = {log: function() { gah(); }};
+//      window.foo = 'bar';
 
+      JS
+
+      jquery = @loader.require('jquery-1.6.3.js')
+
+
+    c.eval <<-JS
 
       // Setup some jquery for convenience
-      var body = window.document.createElement("body");
+      var body = document.createElement("BODY");
+      document.documentElement.appendChild(body);
+      var div = document.createElement('DIV');
+      body.appendChild(div);
+//      window.document.body = body;
 
-      body.innerHTML = htmls;
-      var rendered = weld(body, { fish: ['1dude', '2dude', '3dude'] } );
+   $(htmls, div);
+
+//    div.innerHTML = htmls;
+      //$('div', body).html(htmls);
+
 
     JS
 
     # jsdom.env('<div><p class="infos">Here be infos <span class="bar">Baz</span></p></div>', [])
     # weld.weld('foobar')
     # render text: "FOOBAR: #{ c.eval('exports').inspect }"
-    render text: "x: #{ c.eval('body') }"
+    render text: "x: #{ c.eval('$("div", document.documentElement).length') }"
   end
 end
