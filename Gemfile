@@ -18,8 +18,7 @@ end
 
 gem 'jquery-rails'
 
-# gem 'execjs'
-gem 'execjs-async'
+gem 'execjs'
 
 # Use unicorn as the web server
 # gem 'unicorn'
