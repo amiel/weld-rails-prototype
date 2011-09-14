@@ -3,44 +3,35 @@
   /*  Since weld runs browser/server, ensure there is a console implementation.
    */
 
-var ownerDocument;
-
-  var logger = {
-      log: function() {
-          for(var i in arguments) {
-              ownerDocument.a += arguments[i] + " ";
-          }
-          ownerDocument.a += "<br/>";
-      }
-    };
+  var logger = (typeof console === 'undefined') ? { log : function(){} } : console;
   var nodejs = false;
 
   // feature test for colorized output
   if (typeof require !== 'undefined') {
     var tty = require('tty');
-    if (tty.isatty && tty.isatty(0)) {
+    if (tty.isatty && tty.isatty(0)) { 
       // if this is still a browser, they are trying really hard.
       nodejs = true;
     }
   }
 
 
-  var color      = { gray: '\033[37m', darkgray: '\033[40;30m', red: '\033[31m', green: '\033[32m', yellow: '\033[33m',
+  var color      = { gray: '\033[37m', darkgray: '\033[40;30m', red: '\033[31m', green: '\033[32m', yellow: '\033[33m', 
                     lightblue: '\033[1;34m', cyan: '\033[36m', white: '\033[1;37m' },
       inputRegex = /input|select|textarea|option|button/i,
       imageRegex = /img/i,
       depth            = 0,  // The current depth of the traversal, used for debugging.
-      successIndicator = nodejs ? ("<span style='color: green;'>" + ' ✓' + "</span>") : ' Success',
-      failureIndicator = nodejs ? ("<span style='color: red;'>" + ' ✗' + "</span>") : ' Fail',
+      successIndicator = nodejs ? (color.green + ' ✓' + color.gray) : ' Success',
+      failureIndicator = nodejs ? (color.red + ' ✗' + color.gray) : ' Fail',
       debuggable       = function debuggable(name, operation) {
         var label = name.toUpperCase();
         // All of the ops have the same signature, so this is sane.
         return function(parent, element, key, value) {
-          logger.log(pad(),
-            ((nodejs ? ('┌ ') : '+ ') + label + ' -'),
-              'parent:', colorize(parent) + ',',
-              'element:', colorize(element) + ',',
-              'key:', colorize(key) + ',',
+          logger.log(pad(), 
+            ((nodejs ? (color.gray + '┌ ') : '+ ') + label + ' -'),
+              'parent:', colorize(parent) + ',', 
+              'element:', colorize(element) + ',', 
+              'key:', colorize(key) + ',', 
               'value:', colorize(value));
           depth+=1;
 
@@ -68,7 +59,7 @@ var ownerDocument;
         return ret;
       },
 
-      /*  Debugger statement, terse, accepts any number of arguments
+      /*  Debugger statement, terse, accepts any number of arguments 
        *  that are passed to a logger.log statement.
        */
 
@@ -81,13 +72,16 @@ var ownerDocument;
 
       colorize = function colorize(val) {
         var sval = val+'', u='undefined';
+        if(nodejs) {
           if(sval === 'false' || sval === 'null' || sval === '' || sval === u || typeof val === u || val === false) {
             if(sval === '') { sval = '(empty string)' };
-            return "<span style='color: red;'>" + sval + "</span>";
+            return color.red + sval + color.gray;
           }
           else {
-              return "<span style='color: blue;'>" + sval + "</span>";
+            return color.yellow + sval + color.gray;
           }
+        }
+        return sval;
       };
 
   /*  Weld!
@@ -101,7 +95,7 @@ var ownerDocument;
   exports.weld = function weld(DOMTarget, data, pconfig) {
 
     var
-
+    
     /*
      *  Configuration Object.
      *  @member {Object}
@@ -111,16 +105,16 @@ var ownerDocument;
      *  @method {Boolean|Function}
      *    Determines the method of insertion, can be a functon or false.
      */
-
+    
     config = {
       alias : {},
-      debug : true,
+      debug : false,
       insert: false // Default to append
     },
 
-    /*  An interface to the interal operations, implements common
+    /*  An interface to the interal operations, implements common 
      *  debugging output based on a standard set of parameters.
-     *
+     *  
      *  @param {Function} operation
      *    The function to call in "debug mode"
      */
@@ -192,15 +186,13 @@ var ownerDocument;
         templateParent = element.parentNode;
 
         // LEAF
+        
         if(~({}).toString.call(value).indexOf('Date')) {
           value = value.toString();
         }
-
+        
         if (value.nodeType || typeof value !== 'object') {
-            element.ownerDocument.a += "<br/>SET: " + element + " -> " + key +":" + value +"<br/>";
           ops.set(parent, element, key, value);
-
-//          element.ownerDocument.a += element.textContent;
 
         // ARRAY / NodeList
         } else if (value.length && value[0]) {
@@ -240,8 +232,7 @@ var ownerDocument;
 
         // OBJECT
         } else {
-            // DEBUG
-            element.ownerDocument.a += "<br/>O:";
+
           // TODO: consolidate these
           if (Object.keys) {
             var keys = Object.keys(value), current = keys.length;
@@ -249,8 +240,6 @@ var ownerDocument;
               key    = keys[current];
               obj    = value[key];
               target = ops.match(template, element, key, obj);
-            // DEBUG
-              element.ownerDocument.a += "About to recurse<br/>traverse(" + template + ", " + target + ", " + key + ", " + obj + ")"
               if (target) {
                 ops.traverse(template, target, key, obj);
               }
@@ -305,7 +294,7 @@ var ownerDocument;
         var type = ops.elementType(parent, element, key, value), res = false;
 
         if (value && value.nodeType) { // imports.
-
+          
           if (element.ownerDocument !== value.ownerDocument) {
             value = element.ownerDocument.importNode(value, true);
           } else if (value.parentNode) {
@@ -345,8 +334,8 @@ var ownerDocument;
             key = config.alias[key];
           }
         }
-
-        // Alias can be a node, for explicit binding.
+        
+        // Alias can be a node, for explicit binding. 
         // Alias can also be a method that returns a string or DOMElement
         if (key && key.nodeType) {
           return key;
@@ -400,16 +389,12 @@ var ownerDocument;
       }
     }
 
-    ownerDocument = DOMTarget.ownerDocument;
-
     // Kick it off
     ops.traverse(null, DOMTarget, null, data);
 
     if (config.debug) {
       logger.log(parent.innerHTML);
     }
-
-    return parent;
   };
 
 })((typeof exports === "undefined") ? window : exports);
