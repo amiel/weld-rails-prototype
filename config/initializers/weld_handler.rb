@@ -20,14 +20,14 @@ module Weld
   module Compiler
     def self.context
       ExecJS.compile <<-JAVASCRIPT
-        var run = function(html, data) {
+        var run = function(html, data, config) {
           var jsdom = require('jsdom');
           var weldlib = require('weld');
 
           var a;
           jsdom.env(html, function(error, window) {
             var element = window.document;
-            weldlib.weld(element, data);
+            weldlib.weld(element, data, config);
             a = element.innerHTML;
           });
           return a;
@@ -54,14 +54,16 @@ module ActionView
           begin
             load(Rails.root.join('app/views', @virtual_path + ".rb"))
             class_name = self.controller.class.to_s.gsub(/Controller$/, '')
-            view = Views.const_get(class_name)
-            data = view.new(self.controller, self.assigns).send self.controller.action_name
+            view = Views.const_get(class_name).new(self.controller, self.assigns)
+            data = view.send self.controller.action_name
+            config_method = self.controller.action_name + "_config"
+            config = view.send config_method if view.respond_to? config_method
           rescue LoadError # , NameError
             # Fall back to assigns
             data = @data
           end
 
-          Weld::Compiler.context.call('run', %q{#{ template.source }}, data)
+          Weld::Compiler.context.call('run', %q{#{ template.source }}, data, config || {})
         RUBY
       end
 
