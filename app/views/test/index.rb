@@ -5,7 +5,8 @@ class Views::Test < Weld::View
 
   def index_config
     {
-      alias: { position: 'title' }
+      # map: proc
+      alias: { position: 'title' },
     }
   end
 end
